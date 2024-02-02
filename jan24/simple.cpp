@@ -20,6 +20,7 @@
         // 1NF -> no table column can have tables as values (one value per cell)
         // 2NF -> 
 
+
 #include <iostream>
 #include <fstream>
 #include <sstream>
