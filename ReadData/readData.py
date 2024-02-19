@@ -3,6 +3,8 @@ import os
 import json
 import http.server
 import socketserver
+from  urllib.parse import urlparse, unquote
+
 """
 Feb 16th:
 Have a database, query the db, print results on a webserver at localhost:8000
@@ -16,6 +18,10 @@ Web Server
 HAVE TO:
 1. modify ~/.zshrc to set env vars
 2. create role "myapp2" and grant SELECT permissions to client to the new role
+
+FEB 19th:
+* To get it to work the URL is now: /?zip=81501 (or something else)
+* SQL Injection (sanitization)
 """
 
 conn = psycopg2.connect(database = "example",
@@ -23,16 +29,25 @@ conn = psycopg2.connect(database = "example",
                         host = 'localhost',
                         password = os.getenv("MYAPPPASSWORD"),
                         port = 5432)
+#path="localhost:8000?zip=81506"
+#query = urlparse(path).query
+#query_components = dict([query.split("=")])
+#print(query_components)
+
 cursor = conn.cursor()
 
 #print(json.dumps(record))
 
 PORT = 8000
 
-class SimpleHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
+class OurRequestHandler(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
-        cursor.execute("SELECT * from client")
+        query = unquote(urlparse(self.path).query) # url decode feature
+        print(query)
+        query_components = dict([str(query).split("=")])
+        print(query_components)
+        cursor.execute("SELECT id,first,last,address,zip,phone from client where first=" + query_components["name"])
         record = cursor.fetchall()
         #print("Result ", record)
         result=[]
@@ -47,6 +62,6 @@ class SimpleHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         self.wfile.write(str.encode(jsonStr))
         #self.wfile.write(b'Hello World!') # this works too (don't want string want bytes-like object)
 
-with socketserver.TCPServer(("", PORT), SimpleHTTPRequestHandler) as httpd:
+with socketserver.TCPServer(("", PORT), OurRequestHandler) as httpd:
     print("serving at port ", PORT)
     httpd.serve_forever()
